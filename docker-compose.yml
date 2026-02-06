@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: retail_pg
+    env_file:
+      - .env
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data/processed/sales_france_2026.csv:/tmp/sales_data.csv:ro
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+
+volumes:
+  pgdata:

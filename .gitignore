@@ -1,0 +1,39 @@
+# --------------------
+# Python / env
+# --------------------
+__pycache__/
+*.py[oc]
+*.log
+.venv/
+.env
+.env.*
+
+# --------------------
+# dbt artifacts
+# --------------------
+dbt_retail/target/
+dbt_retail/logs/
+dbt_retail/dbt_packages/
+dbt_retail/_backup_models/
+dbt_retail/_backup_docs/
+
+# --------------------
+# Data
+# --------------------
+data/raw/
+data/processed/
+
+
+# --------------------
+# Power BI
+# --------------------
+powerbi/**/*.pbix
+powerbi/**/*.pbit
+
+# --------------------
+# OS / IDE
+# --------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

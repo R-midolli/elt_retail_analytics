@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: dim_invoice
+    description: "Dimension facture (header). Grain = 1 ligne par invoice_no."
+    columns:
+      - name: invoice_no
+        tests: [not_null, unique]
+      - name: invoice_day
+        tests: [not_null]
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+
+  - name: fact_sales_star
+    description: "Vue star (grain = ligne facture x produit)."
+    columns:
+      - name: sales_date
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_day
+      - name: stock_code
+        tests:
+          - relationships:
+              to: ref('dim_products')
+              field: stock_code
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: invoice_no
+        tests:
+          - relationships:
+              to: ref('dim_invoice')
+              field: invoice_no

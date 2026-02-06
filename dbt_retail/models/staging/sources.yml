@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Données brutes chargées depuis le fichier Online Retail (staging_sales)."
+    tables:
+      - name: staging_sales
+        description: "Table brute (ingestion) : ventes en ligne, lignes de facture, clients, produits, flags retours/annulations."

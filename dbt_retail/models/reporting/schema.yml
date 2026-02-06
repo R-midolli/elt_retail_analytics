@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: kpi_daily
+    columns:
+      - name: sales_date
+        tests: [not_null, unique]
+
+  - name: kpi_product
+    columns:
+      - name: stock_code
+        tests: [not_null, unique]
+
+  - name: kpi_customer
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]

@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Dimension clients dédupliquée à partir de stg_sales."
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+
+  - name: dim_products
+    description: "Dimension produits (stock_code) dédupliquée à partir de stg_sales."
+    columns:
+      - name: stock_code
+        tests: [not_null, unique]
+      - name: product_description
+        tests: [not_null]
+
+  - name: fact_sales
+    description: "Table de faits au niveau ligne de facture (1 ligne = 1 produit sur 1 facture)."
+    columns:
+      - name: invoice_no
+        tests: [not_null]
+      - name: stock_code
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_products')
+              field: stock_code
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: line_amount
+        description: "Montant de ligne = quantity * unit_price."
