@@ -2,7 +2,7 @@
 # Python / env
 # --------------------
 __pycache__/
-*.py[oc]
+*.py[cod]
 *.log
 .venv/
 .env
@@ -18,17 +18,19 @@ dbt_retail/_backup_models/
 dbt_retail/_backup_docs/
 
 # --------------------
-# Data
+# Data (évite de versionner les datasets)
 # --------------------
 data/raw/
 data/processed/
 
-
 # --------------------
-# Power BI
+# Power BI (fichiers & cache local)
 # --------------------
 powerbi/**/*.pbix
 powerbi/**/*.pbit
+**/.pbi/
+**/.pbi-cache/
+**/*.pbix.tmp
 
 # --------------------
 # OS / IDE
