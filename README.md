@@ -173,18 +173,13 @@ uv run dbt test --profiles-dir .
 In Power BI Desktop:
 
 1. **Get Data → PostgreSQL**
-<<<<<<< HEAD
 2. Load (from `analytics_marts`):
-=======
-2. Load:
->>>>>>> f5cafac (update readme)
    - `analytics_marts.fact_sales_star`
    - `analytics_marts.dim_date`
    - `analytics_marts.dim_customers`
    - `analytics_marts.dim_products`
    - `analytics_marts.dim_invoice`
 
-<<<<<<< HEAD
 📸 Power BI star schema (Model view):  
 ![Power BI star schema](powerbi/screenshots/pbi_model_star_schema.png)
 
@@ -205,6 +200,7 @@ Measures are stored in a dedicated table **Measures**.
 ![Measures list](powerbi/screenshots/pbi_measures_list.png)
 
 **Main measures (implemented):**
+
 - `CA`
 - `Commandes (Invoices)`
 - `Clients`
@@ -279,14 +275,6 @@ CALCULATE ( [CA], DATESYTD ( 'analytics_marts_dim_date'[date_day] ) )
 
 - `CA` is formatted as **Currency (€)** (Measure tools → Format) to ensure consistent display across visuals and tooltips.
 - Decimal places can be set to `0–2` depending on the desired precision.
-
-=======
-3. Create relationships (Many-to-one, Single direction, Active):
-   - fact_sales_star[customer_id] → dim_customers[customer_id]
-   - fact_sales_star[sales_date] → dim_date[date_day]
-   - fact_sales_star[stock_code] → dim_products[stock_code]
-   - fact_sales_star[invoice_no] → dim_invoice[invoice_no]
->>>>>>> f5cafac (update readme)
 
 ---
 
