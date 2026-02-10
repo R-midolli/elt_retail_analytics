@@ -46,3 +46,6 @@ Thumbs.db
 
 # ignore nested dbt .gitignore
 /dbt_retail/.gitignore
+
+# local backups
+backup_dbt_*.tgz
