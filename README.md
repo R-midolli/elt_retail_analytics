@@ -26,21 +26,21 @@ End-to-end **ELT pipeline** built with a classic analytics stack:
 
 ```mermaid
 flowchart LR
-  A[Online Retail II.xlsx] --> B[Python load to Postgres]
-  B --> C[(Postgres / schema: raw)]
-  C --> D[dbt staging]
-  D --> E[dbt marts (star schema)]
-  E --> F[dbt reporting (KPIs / views)]
-  F --> G[Power BI semantic model]
-  G --> H[Executive dashboard]
-```
+  A["Online Retail II.xlsx"] --> B["Python load to Postgres"]
+  B --> C[("Postgres<br/>schema: raw")]
+  C --> D["dbt staging"]
+  D --> E["dbt marts<br/>(star schema)"]
+  E --> F["dbt reporting<br/>(KPIs / views)"]
+  F --> G["Power BI semantic model"]
+  G --> H["Executive dashboard"]
+````
 
 ### Postgres schemas used in this project
 
-- **raw**: source table loaded by Python (`raw.sales`)
-- **staging**: dbt staging models (e.g., `staging.stg_sales`)
-- **marts**: star-schema tables (e.g., `marts.fact_sales_star`, `marts.dim_*`)
-- **analytics_reporting**: KPI tables / reporting views (e.g., `analytics_reporting.kpi_daily`)
+* **raw**: source table loaded by Python (`raw.sales`)
+* **staging**: dbt staging models (e.g., `staging.stg_sales`)
+* **marts**: star-schema tables (e.g., `marts.fact_sales_star`, `marts.dim_*`)
+* **analytics_reporting**: KPI tables / reporting views (e.g., `analytics_reporting.kpi_daily`)
 
 ---
 
@@ -48,13 +48,13 @@ flowchart LR
 
 This project uses the **Online Retail II** dataset (Excel file) stored in:
 
-- `data/raw/online_retail_II.xlsx`
+* `data/raw/online_retail_II.xlsx`
 
 The dataset contains historical e-commerce transactions (2009–2011) across multiple countries.
-A public reference for this dataset is available on the UCI Machine Learning Repository:
+Reference (UCI):
 
 ```text
-https://archive.ics.uci.edu/dataset/352/online+retail
+https://archive.ics.uci.edu/ml/datasets/online%2Bretail%2BII
 ```
 
 ---
@@ -63,29 +63,34 @@ https://archive.ics.uci.edu/dataset/352/online+retail
 
 ### Fact table
 
-- **`marts.fact_sales_star`**
-  - **Grain:** invoice line (`invoice_no × stock_code × sales_date × customer_id`)
-  - **Measures:** `quantity`, `unit_price`, `line_amount`
-  - **Keys:** `customer_id`, `sales_date`, `stock_code`, `invoice_no`
-  - **Flags:** `is_cancelled`
+* **`marts.fact_sales_star`**
+
+  * **Grain:** invoice line (`invoice_no × stock_code × sales_date × customer_id`)
+  * **Measures:** `quantity`, `unit_price`, `line_amount`
+  * **Keys:** `customer_id`, `sales_date`, `stock_code`, `invoice_no`
+  * **Flags:** `is_cancelled`
 
 ### Dimensions
 
-- **`marts.dim_date`**
-  - **PK:** `date_day`
-  - **Attributes (examples):** `year`, `month`, `dow`, `iso_week`, `month_start`
+* **`marts.dim_date`**
 
-- **`marts.dim_products`**
-  - **PK:** `stock_code`
-  - **Attributes:** `product_description`, `is_product`
+  * **PK:** `date_day`
+  * **Attributes (examples):** `year`, `month`, `dow`, `iso_week`, `month_start`
 
-- **`marts.dim_customers`**
-  - **PK:** `customer_id`
-  - **Attributes:** `country`
+* **`marts.dim_products`**
 
-- **`marts.dim_invoice`**
-  - **PK:** `invoice_no`
-  - **Attributes:** `invoice_day`, `invoice_ts`, `is_cancelled`
+  * **PK:** `stock_code`
+  * **Attributes:** `product_description`, `is_product`
+
+* **`marts.dim_customers`**
+
+  * **PK:** `customer_id`
+  * **Attributes:** `country`
+
+* **`marts.dim_invoice`**
+
+  * **PK:** `invoice_no`
+  * **Attributes:** `invoice_day`, `invoice_ts`, `is_cancelled`
 
 ---
 
@@ -93,7 +98,7 @@ https://archive.ics.uci.edu/dataset/352/online+retail
 
 The lineage graph screenshot is stored at:
 
-- `assets/images/dbt_graph.png`
+* `assets/images/dbt_graph.png`
 
 ![dbt graph](assets/images/dbt_graph.png)
 
@@ -116,37 +121,38 @@ uv run dbt docs serve --profiles-dir . --port 8080
 
 ### Source
 
-- `source('raw_retail', 'sales')` → table **`raw.sales`**
+* `source('raw_retail', 'sales')` → table **`raw.sales`**
 
 Source definition is in:
 
-- `dbt_retail/models/staging/sources.yml`
+* `dbt_retail/models/staging/sources.yml`
 
 ### Staging
 
-- **`staging.stg_sales`**
-  - Standardizes types and column names
-  - Computes `sales_date` and `line_amount`
-  - Filters obvious invalid records (e.g., null identifiers, non-positive values)
+* **`staging.stg_sales`**
+
+  * Standardizes types and column names
+  * Computes `sales_date` and `line_amount`
+  * Filters obvious invalid records (e.g., null identifiers, non-positive values)
 
 ### Marts
 
 Core marts (star schema):
 
-- `marts.fact_sales`
-- `marts.fact_sales_star`
-- `marts.dim_date`
-- `marts.dim_products`
-- `marts.dim_invoice`
-- `marts.dim_customers`
+* `marts.fact_sales`
+* `marts.fact_sales_star`
+* `marts.dim_date`
+* `marts.dim_products`
+* `marts.dim_invoice`
+* `marts.dim_customers`
 
 ### Reporting
 
-- `analytics_reporting.kpi_daily`
-- `analytics_reporting.kpi_product`
-- `analytics_reporting.kpi_customer`
-- `analytics_reporting.sales_star` (flattened view for exploration)
-- Exposure: `retail_kpi_dashboard`
+* `analytics_reporting.kpi_daily`
+* `analytics_reporting.kpi_product`
+* `analytics_reporting.kpi_customer`
+* `analytics_reporting.sales_star` (flattened view for exploration)
+* Exposure: `retail_kpi_dashboard`
 
 ---
 
@@ -189,10 +195,10 @@ ELT_retail_analytics/
 
 ## ✅ Prerequisites
 
-- **Docker + Docker Compose** (Postgres)
-- **Python 3.10+**
-- **uv** (Python package manager)
-- **Power BI Desktop** (for the BI part)
+* **Docker + Docker Compose** (Postgres)
+* **Python 3.10+**
+* **uv** (Python package manager)
+* **Power BI Desktop** (for the BI part)
 
 ---
 
@@ -242,9 +248,9 @@ uv run python elt_step1_extract.py
 
 What it does:
 
-- Reads `data/raw/online_retail_II.xlsx`
-- Cleans obvious invalid rows (null IDs, negative/zero quantities or prices)
-- Loads to **`raw.sales`** in Postgres
+* Reads `data/raw/online_retail_II.xlsx`
+* Cleans obvious invalid rows (null IDs, negative/zero quantities or prices)
+* Loads to **`raw.sales`** in Postgres
 
 ### Step 2 — Transform (dbt)
 
@@ -275,24 +281,24 @@ uv run dbt test --profiles-dir .
 
 In Power BI Desktop:
 
-- **Get Data → PostgreSQL database**
-- Server: `localhost`
-- Database: `retail`
-- Credentials: from `.env`
+* **Get Data → PostgreSQL database**
+* Server: `localhost`
+* Database: `retail`
+* Credentials: from `.env`
 
 Load tables from these schemas:
 
-- `marts`: `fact_sales_star`, `dim_date`, `dim_customers`, `dim_products`, `dim_invoice`
-- (optional) `analytics_reporting`: `kpi_daily`, `kpi_product`, `kpi_customer`, `sales_star`
+* `marts`: `fact_sales_star`, `dim_date`, `dim_customers`, `dim_products`, `dim_invoice`
+* (optional) `analytics_reporting`: `kpi_daily`, `kpi_product`, `kpi_customer`, `sales_star`
 
 ### 2) Relationships (Model view)
 
 Create active relationships (Many-to-one, Single direction):
 
-- `fact_sales_star[customer_id]` → `dim_customers[customer_id]`
-- `fact_sales_star[sales_date]` → `dim_date[date_day]`
-- `fact_sales_star[stock_code]` → `dim_products[stock_code]`
-- `fact_sales_star[invoice_no]` → `dim_invoice[invoice_no]`
+* `fact_sales_star[customer_id]` → `dim_customers[customer_id]`
+* `fact_sales_star[sales_date]` → `dim_date[date_day]`
+* `fact_sales_star[stock_code]` → `dim_products[stock_code]`
+* `fact_sales_star[invoice_no]` → `dim_invoice[invoice_no]`
 
 ---
 
@@ -363,8 +369,8 @@ DIVIDE ( [CA] - [CA Mois précédent], [CA Mois précédent] )
 
 After running dbt:
 
-- In Power BI Desktop: **Home → Refresh**
-- If columns changed: **Transform data → Refresh Preview → Close & Apply**
+* In Power BI Desktop: **Home → Refresh**
+* If columns changed: **Transform data → Refresh Preview → Close & Apply**
 
 ---
 
@@ -390,20 +396,20 @@ SELECT SUM(line_amount) FROM marts.fact_sales_star;
 
 ## 📌 Tech stack
 
-- **Source:** Online Retail II (Excel)
-- **ELT:** Python + Postgres (Docker)
-- **Transformations:** dbt
-- **BI:** Power BI Desktop
-- **Version control:** Git + GitHub
+* **Source:** Online Retail II (Excel)
+* **ELT:** Python + Postgres (Docker)
+* **Transformations:** dbt
+* **BI:** Power BI Desktop
+* **Version control:** Git + GitHub
 
 ---
 
 ## 🧭 Roadmap (optional)
 
-- Add CI (GitHub Actions) for `dbt build` + `dbt test`
-- Add incremental models for larger datasets
-- Add automated refresh script for local runs
-- Extend time-intelligence measures (YoY, rolling windows)
+* Add CI (GitHub Actions) for `dbt build` + `dbt test`
+* Add incremental models for larger datasets
+* Add automated refresh script for local runs
+* Extend time-intelligence measures (YoY, rolling windows)
 
 ---
 
@@ -412,7 +418,7 @@ SELECT SUM(line_amount) FROM marts.fact_sales_star;
 Dataset reference:
 
 ```text
-https://archive.ics.uci.edu/dataset/352/online+retail
+https://archive.ics.uci.edu/ml/datasets/online%2Bretail%2BII
 ```
 
 Author: Rafael Midolli
