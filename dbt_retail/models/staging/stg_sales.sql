@@ -1,52 +1,38 @@
-{{ config(materialized='view', schema='analytics_staging', tags=['staging']) }}
+{{ config(materialized='view', schema='staging') }}
 
-with src as (
+with source as (
     select *
-    from {{ source('raw', 'staging_sales') }}
+    from {{ source('raw_retail', 'sales') }}
 ),
 
-clean as (
+typed as (
     select
-        nullif(trim(invoice_no::text), '')                      as invoice_no,
+        trim(cast(invoice_no as text))                    as invoice_no,
+        upper(trim(cast(stock_code as text)))             as stock_code,
+        cast(customer_id as bigint)                       as customer_id,
 
-        -- ✅ NORMALISATION CLÉ : UPPER + TRIM
-        nullif(upper(trim(stock_code::text)), '')              as stock_code,
+        nullif(trim(product_description), '')             as product_description,
+        nullif(trim(country), '')                         as country,
 
-        nullif(trim(product_description::text), '')            as product_description,
+        cast(quantity as int)                             as quantity,
+        cast(unit_price as numeric(18,4))                 as unit_price,
 
-        cast(quantity as integer)                              as quantity,
-        cast(unit_price as numeric(12,4))                      as unit_price,
-        cast(invoice_date as timestamp)                        as invoice_date,
-
-        case
-            when nullif(trim(customer_id::text), '') ~ '^\d+$'
-                then nullif(trim(customer_id::text), '')::bigint
-            else null
-        end                                                    as customer_id,
-
-        nullif(trim(customer_name::text), '')                  as customer_name,
-        nullif(trim(customer_city::text), '')                  as customer_city,
-        nullif(trim(country_original::text), '')               as country_original,
-        nullif(trim(country_fr::text), '')                     as country_fr,
-
-        coalesce(is_cancellation, false)                       as is_cancellation,
-        coalesce(is_return, false)                             as is_return
-    from src
+        cast(invoice_date as timestamp)                   as invoice_ts,
+        cast(invoice_date as date)                        as invoice_day
+    from source
 )
 
 select
     invoice_no,
     stock_code,
+    customer_id,
     product_description,
+    country,
     quantity,
     unit_price,
-    invoice_date,
-    customer_id,
-    customer_name,
-    customer_city,
-    country_original,
-    country_fr,
-    is_cancellation,
-    is_return,
-    (quantity::numeric * unit_price)::numeric(12,4)            as line_amount
-from clean
+    invoice_ts,
+    invoice_day,
+    (cast(quantity as numeric(18,4)) * unit_price)        as line_amount
+from typed
+where invoice_no is not null
+  and stock_code is not null

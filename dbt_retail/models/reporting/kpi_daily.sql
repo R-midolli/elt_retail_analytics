@@ -1,33 +1,40 @@
-{{ config(materialized='table', schema='reporting', tags=['reporting']) }}
+{{ config(materialized='table', schema='reporting') }}
 
 with base as (
     select
-        date_trunc('day', invoice_date)::date as sales_date,
         invoice_no,
-        customer_id,
-        stock_code,
+        sales_date,
         quantity,
         line_amount,
-        is_cancellation,
-        is_return
-    from {{ ref('stg_sales') }}
+        case
+            when quantity < 0 or invoice_no like 'C%' then true
+            else false
+        end as is_cancellation
+    from {{ ref('fact_sales_star') }}
+),
+
+filtered as (
+    select *
+    from base
+    where is_cancellation = false
+      and quantity > 0
+),
+
+agg as (
+    select
+        sales_date,
+        count(distinct invoice_no) as orders,
+        sum(quantity)              as units,
+        sum(line_amount)           as revenue
+    from filtered
+    group by 1
 )
 
 select
     sales_date,
-
-    count(*) as line_count,
-    count(distinct invoice_no) as invoice_count,
-    count(distinct customer_id) filter (where customer_id is not null) as customer_count,
-
-    sum(quantity) filter (where not is_cancellation and not is_return) as units_sold,
-    sum(line_amount) filter (where not is_cancellation and not is_return) as revenue_sales,
-
-    sum(abs(line_amount)) filter (where is_return) as returns_value,
-    sum(abs(line_amount)) filter (where is_cancellation) as cancellations_value,
-
-    sum(line_amount) as net_amount_raw
-
-from base
-group by sales_date
+    orders,
+    units,
+    revenue,
+    case when orders = 0 then null else revenue / orders end as aov
+from agg
 order by sales_date

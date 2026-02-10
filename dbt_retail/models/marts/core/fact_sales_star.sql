@@ -1,12 +1,22 @@
-{{ config(materialized='view', schema='analytics_marts', tags=['core']) }}
+{{ config(materialized='table', schema='marts') }}
 
-select
-    invoice_no,
-    stock_code,
-    customer_id,
-    invoice_date,
-    invoice_date::date as sales_date,
-    quantity,
-    unit_price,
-    line_amount
-from {{ ref('fact_sales') }}
+with base as (
+    select
+        invoice_no,
+        cast(invoice_ts as date) as sales_date,
+        customer_id,
+        stock_code,
+        country,
+        quantity,
+        unit_price,
+        line_amount,
+        (left(invoice_no, 1) = 'C' or quantity < 0) as is_cancelled
+    from {{ ref('stg_sales') }}
+    where invoice_no is not null
+      and stock_code is not null
+      and customer_id is not null
+      and invoice_ts is not null
+)
+
+select *
+from base

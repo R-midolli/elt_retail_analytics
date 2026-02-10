@@ -1,39 +1,45 @@
-{{ config(materialized='table', schema='reporting', tags=['reporting']) }}
+{{ config(materialized='table', schema='reporting') }}
 
 with base as (
     select
+        fs.invoice_no,
+        fs.stock_code,
+        fs.sales_date,
+        fs.quantity,
+        fs.line_amount,
+        case
+            when fs.quantity < 0 or fs.invoice_no like 'C%' then true
+            else false
+        end as is_cancellation,
+        p.product_description
+    from {{ ref('fact_sales_star') }} fs
+    left join {{ ref('dim_products') }} p
+      on fs.stock_code = p.stock_code
+),
+
+filtered as (
+    select *
+    from base
+    where is_cancellation = false
+      and quantity > 0
+),
+
+agg as (
+    select
         stock_code,
-        product_description,
-        invoice_no,
-        quantity,
-        line_amount,
-        is_cancellation,
-        is_return
-    from {{ ref('stg_sales') }}
-    where stock_code is not null
+        max(product_description)   as product_description,
+        count(distinct invoice_no) as orders,
+        sum(quantity)              as units,
+        sum(line_amount)           as revenue
+    from filtered
+    group by 1
 )
 
 select
     stock_code,
-    max(product_description) as product_description,
-
-    count(*) as line_count,
-    count(distinct invoice_no) as invoice_count,
-
-    sum(quantity) filter (where not is_cancellation and not is_return) as units_sold,
-    sum(line_amount) filter (where not is_cancellation and not is_return) as revenue_sales,
-
-    count(*) filter (where is_return) as return_lines,
-    count(*) filter (where is_cancellation) as cancellation_lines,
-
-    sum(abs(line_amount)) filter (where is_return) as returns_value,
-    sum(abs(line_amount)) filter (where is_cancellation) as cancellations_value,
-
-    case
-        when count(*) = 0 then 0
-        else (count(*) filter (where is_return))::numeric / count(*)::numeric
-    end as return_rate_lines
-
-from base
-group by stock_code
-order by revenue_sales desc nulls last
+    product_description,
+    orders,
+    units,
+    revenue,
+    case when orders = 0 then null else revenue / orders end as aov
+from agg

@@ -39,3 +39,10 @@ powerbi/**/*.pbit
 Thumbs.db
 .vscode/
 .idea/
+
+# backups
+*.bak
+*.bak.*
+
+# ignore nested dbt .gitignore
+/dbt_retail/.gitignore
