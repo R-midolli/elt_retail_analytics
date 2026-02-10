@@ -1,4 +1,4 @@
-🛒 ELT Retail Analytics (Postgres + dbt + Power BI)
+# 🛒 ELT Retail Analytics (Postgres + dbt + Power BI)
 
 End-to-end **ELT pipeline** built around a classic analytics stack:
 
@@ -24,6 +24,8 @@ flowchart TD
     E
   end
 ```
+
+````
 
 ---
 
@@ -58,14 +60,13 @@ This dataset is filtered to:
 
 The dbt graph screenshot is stored at: `assets/images/dbt_graph.png`
 
-![dbt graph](assets/images/dbt_graph.png)
-
 How it was produced (example):
 
 ```bash
 cd dbt_retail
 uv run dbt docs generate --profiles-dir .
 uv run dbt docs serve --profiles-dir .
+
 ```
 
 ---
@@ -75,13 +76,13 @@ uv run dbt docs serve --profiles-dir .
 ```text
 ELT_retail_analytics/
 ├── data/
-│   ├── raw/                      # source file(s) (optional in repo)
-│   └── processed/                # filtered / processed exports (optional in repo)
+│   ├── raw/                  # source file(s) (optional in repo)
+│   └── processed/            # filtered / processed exports (optional in repo)
 ├── dbt_retail/
 │   ├── models/
-│   │   ├── staging/              # stg_sales
-│   │   ├── marts/core/           # dims + facts (star schema)
-│   │   └── reporting/            # KPI models / views
+│   │   ├── staging/          # stg_sales
+│   │   ├── marts/core/       # dims + facts (star schema)
+│   │   └── reporting/        # KPI models / views
 │   ├── macros/
 │   └── packages.yml
 ├── powerbi/
@@ -96,6 +97,7 @@ ELT_retail_analytics/
 ├── elt_step1_extract.py
 ├── .env.example
 └── README.md
+
 ```
 
 ---
@@ -116,24 +118,28 @@ Copy the example and fill values:
 
 ```bash
 cp .env.example .env
+
 ```
 
 ### 2) Start Postgres (Docker)
 
 ```bash
 docker compose up -d
+
 ```
 
 (Optional) verify container:
 
 ```bash
 docker ps
+
 ```
 
 ### 3) Create schema / objects (if needed)
 
 ```bash
 docker exec -it retail_pg psql -U retail_user -d retail -f /sql/init.sql
+
 ```
 
 ---
@@ -145,6 +151,7 @@ docker exec -it retail_pg psql -U retail_user -d retail -f /sql/init.sql
 ```bash
 source .venv/Scripts/activate   # Windows Git Bash
 python elt_step1_extract.py
+
 ```
 
 ### 2) Build models with dbt (staging → marts)
@@ -154,12 +161,14 @@ cd dbt_retail
 set -a && source ../.env && set +a
 
 uv run dbt run --profiles-dir . --select stg_sales dim_products dim_customers dim_date dim_invoice fact_sales fact_sales_star
+
 ```
 
 ### 3) Run tests
 
 ```bash
 uv run dbt test --profiles-dir .
+
 ```
 
 ---
@@ -174,14 +183,14 @@ In Power BI Desktop:
 
 1. **Get Data → PostgreSQL**
 2. Load (from `analytics_marts`):
-   - `analytics_marts.fact_sales_star`
-   - `analytics_marts.dim_date`
-   - `analytics_marts.dim_customers`
-   - `analytics_marts.dim_products`
-   - `analytics_marts.dim_invoice`
 
-📸 Power BI star schema (Model view):  
-![Power BI star schema](powerbi/screenshots/pbi_model_star_schema.png)
+- `analytics_marts.fact_sales_star`
+- `analytics_marts.dim_date`
+- `analytics_marts.dim_customers`
+- `analytics_marts.dim_products`
+- `analytics_marts.dim_invoice`
+
+📸 Power BI star schema (Model view):
 
 ### 2) Relationships (Model view)
 
@@ -196,8 +205,7 @@ Create relationships (Many-to-one, Single direction, Active):
 
 Measures are stored in a dedicated table **Measures**.
 
-📸 Measures list:  
-![Measures list](powerbi/screenshots/pbi_measures_list.png)
+📸 Measures list:
 
 **Main measures (implemented):**
 
@@ -217,7 +225,7 @@ Measures are stored in a dedicated table **Measures**.
 
 **DAX reference (reproducible):**
 
-```DAX
+```dax
 -- Revenue
 CA =
 SUM ( 'analytics_marts_fact_sales_star'[line_amount] )
@@ -269,6 +277,7 @@ CALCULATE ( [CA], DATESMTD ( 'analytics_marts_dim_date'[date_day] ) )
 -- Year-to-date revenue
 CA YTD =
 CALCULATE ( [CA], DATESYTD ( 'analytics_marts_dim_date'[date_day] ) )
+
 ```
 
 ### 4) Formatting notes
@@ -301,3 +310,4 @@ When dbt rebuilds tables/views:
 - dbt
 - Python
 - Power BI
+````
