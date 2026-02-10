@@ -1,154 +1,152 @@
 # 🛒 ELT Retail Analytics (Postgres + dbt + Power BI)
 
-End-to-end **ELT pipeline** built around a classic analytics stack:
+End-to-end **ELT pipeline** built with a classic analytics stack:
 
-- **Python** for extraction + loading (raw → Postgres)
-- **dbt** for transformations and a **Star Schema** (staging → marts)
-- **Power BI** for the semantic model and executive dashboard
-
----
-
-## 📊 Dashboard Preview
-
-![Dashboard](powerbi/screenshots/dashboard_final.png)
-
-**Key Features:**
-
-- Executive KPIs with sparklines and trend indicators
-- Interactive time-series analysis with MoM comparisons
-- Top 10 products by revenue
-- Geographic market concentration analysis
-- Professional gradient header with integrated filters
+- **Python** for extraction + loading (**Excel → Postgres / raw**)
+- **dbt** for transformations and a **Star Schema** (**staging → marts → reporting**)
+- **Power BI** for the semantic model and an executive dashboard
 
 ---
 
-## 🧭 Architecture (ELT → dbt → BI)
+## 📊 Power BI Model Preview
+
+> Screenshot of the **star schema** in Power BI (Model view):
+
+![Power BI star schema](powerbi/screenshots/pbi_model_star_schema.png)
+
+> Screenshot of the **DAX measures** list:
+
+![Measures list](powerbi/screenshots/pbi_measures_list.png)
+
+---
+
+## 🧭 Architecture
+
+### High-level flow
 
 ```mermaid
-flowchart TD
-  A(Start) --> B(Extract and Load - Python)
-  B --> C(Postgres - Docker)
-  C --> D(dbt - Staging)
-  D --> E(dbt - Marts Star Schema)
-  E --> F(Power BI - Semantic Model)
-  F --> G(Dashboard)
-
-  subgraph dbt_models[dbt models]
-    D
-    E
-  end
+flowchart LR
+  A[Online Retail II.xlsx] --> B[Python load to Postgres]
+  B --> C[(Postgres / schema: raw)]
+  C --> D[dbt staging]
+  D --> E[dbt marts (star schema)]
+  E --> F[dbt reporting (KPIs / views)]
+  F --> G[Power BI semantic model]
+  G --> H[Executive dashboard]
 ```
 
-**Pipeline Flow:**
+### Postgres schemas used in this project
 
-```
-Raw dataset (online_retail_II.xlsx)
-      |
-      v
-Python loader (elt_step1_extract.py)
-      |
-      v
-Postgres (schema: raw)
-      |
-      v
- dbt staging → dbt marts (star schema) → dbt reporting (KPIs)
-      |
-      v
-Power BI semantic model + executive dashboard
+- **raw**: source table loaded by Python (`raw.sales`)
+- **staging**: dbt staging models (e.g., `staging.stg_sales`)
+- **marts**: star-schema tables (e.g., `marts.fact_sales_star`, `marts.dim_*`)
+- **analytics_reporting**: KPI tables / reporting views (e.g., `analytics_reporting.kpi_daily`)
+
+---
+
+## 📌 Dataset
+
+This project uses the **Online Retail II** dataset (Excel file) stored in:
+
+- `data/raw/online_retail_II.xlsx`
+
+The dataset contains historical e-commerce transactions (2009–2011) across multiple countries.
+A public reference for this dataset is available on the UCI Machine Learning Repository:
+
+```text
+https://archive.ics.uci.edu/dataset/352/online+retail
 ```
 
 ---
 
-## 📌 Data Scope
+## 🧱 Star Schema (dbt marts)
 
-This project uses the **UCI Machine Learning Repository - Online Retail Dataset**:
+### Fact table
 
-- **Time period:** December 2009 - December 2011
-- **Geographic scope:** Multiple countries (UK, France, Germany, EIRE, Spain, Netherlands, Belgium, etc.)
-- **Transactions:** ~400K+ invoice lines after cleaning
-- **Source:** [UCI Online Retail Dataset](https://archive.ics.uci.edu/dataset/352/online+retail)
+- **`marts.fact_sales_star`**
+  - **Grain:** invoice line (`invoice_no × stock_code × sales_date × customer_id`)
+  - **Measures:** `quantity`, `unit_price`, `line_amount`
+  - **Keys:** `customer_id`, `sales_date`, `stock_code`, `invoice_no`
+  - **Flags:** `is_cancelled`
 
-The dataset is used in its **original form** (2009-2011 time period) to demonstrate the ELT pipeline architecture while maintaining data authenticity.
+### Dimensions
 
----
+- **`marts.dim_date`**
+  - **PK:** `date_day`
+  - **Attributes (examples):** `year`, `month`, `dow`, `iso_week`, `month_start`
 
-## 🧱 Star Schema (Analytics Marts)
+- **`marts.dim_products`**
+  - **PK:** `stock_code`
+  - **Attributes:** `product_description`, `is_product`
 
-### Fact Table
+- **`marts.dim_customers`**
+  - **PK:** `customer_id`
+  - **Attributes:** `country`
 
-- `analytics_marts.fact_sales_star`
-  - **Grain:** invoice line (invoice_no × stock_code × date × customer)
-  - **Measures:** quantity, unit_price, line_amount
-  - **Foreign keys:** customer_id, sales_date, stock_code, invoice_no
-
-### Dimension Tables
-
-- `analytics_marts.dim_date`
-  - **Primary key:** date_day
-  - **Attributes:** year, month, quarter, week, day_of_week, etc.
-
-- `analytics_marts.dim_customers`
-  - **Primary key:** customer_id
-  - **Attributes:** country
-
-- `analytics_marts.dim_products`
-  - **Primary key:** stock_code
-  - **Attributes:** description (product_description)
-
-- `analytics_marts.dim_invoice`
-  - **Primary key:** invoice_no
-  - **Attributes:** invoice_day, is_cancelled
+- **`marts.dim_invoice`**
+  - **PK:** `invoice_no`
+  - **Attributes:** `invoice_day`, `invoice_ts`, `is_cancelled`
 
 ---
 
-## 🕸️ dbt Lineage / Graph
+## 🕸️ dbt Lineage Graph
 
-The dbt graph screenshot is stored at: `assets/images/dbt_graph.png`
+The lineage graph screenshot is stored at:
+
+- `assets/images/dbt_graph.png`
 
 ![dbt graph](assets/images/dbt_graph.png)
 
-### How to regenerate dbt docs:
+### Regenerate dbt docs + lineage
 
 ```bash
 cd dbt_retail
-uv run dbt docs generate --profiles-dir .
-uv run dbt docs serve --profiles-dir .
-# Open http://localhost:8080 → Lineage Graph → take a screenshot
+
+# load env vars for dbt connection
+set -o allexport; . ../.env; set +o allexport
+
+uv run dbt docs generate --profiles-dir . --no-partial-parse
+uv run dbt docs serve --profiles-dir . --port 8080
+# open http://localhost:8080 → Lineage Graph → take a screenshot
 ```
 
 ---
 
-## 🗂️ dbt Models (Overview)
+## 🗂️ dbt Models (overview)
 
 ### Source
 
-- `source('raw', 'sales')` → Postgres schema: `raw`
+- `source('raw_retail', 'sales')` → table **`raw.sales`**
 
-### Staging Layer
+Source definition is in:
 
-- `stg_sales` — Standardizes column names, types, and cleans raw fields
-  - Filters: quantity > 0, unit_price > 0, non-null invoice_no and customer_id
-  - Computed fields: sales_date, line_amount
+- `dbt_retail/models/staging/sources.yml`
 
-### Marts Layer (Star Schema)
+### Staging
 
-**Fact:**
+- **`staging.stg_sales`**
+  - Standardizes types and column names
+  - Computes `sales_date` and `line_amount`
+  - Filters obvious invalid records (e.g., null identifiers, non-positive values)
 
-- `fact_sales_star` (grain: invoice line)
+### Marts
 
-**Dimensions:**
+Core marts (star schema):
 
-- `dim_date` (time dimension)
-- `dim_products` (product catalog)
-- `dim_invoice` (invoice headers)
-- `dim_customers` (customer geography)
+- `marts.fact_sales`
+- `marts.fact_sales_star`
+- `marts.dim_date`
+- `marts.dim_products`
+- `marts.dim_invoice`
+- `marts.dim_customers`
 
-### Reporting Layer (KPI Tables)
+### Reporting
 
-- `kpi_daily` — Daily aggregated metrics
-- `kpi_product` — Product-level performance
-- `kpi_customer` — Customer-level analysis
-- `sales_star` — Flattened fact+dimensions view
+- `analytics_reporting.kpi_daily`
+- `analytics_reporting.kpi_product`
+- `analytics_reporting.kpi_customer`
+- `analytics_reporting.sales_star` (flattened view for exploration)
+- Exposure: `retail_kpi_dashboard`
 
 ---
 
@@ -157,42 +155,44 @@ uv run dbt docs serve --profiles-dir .
 ```text
 ELT_retail_analytics/
 ├── data/
-│   ├── raw/                      # online_retail_II.xlsx (source data)
-│   └── processed/                # intermediate exports (optional)
+│   ├── raw/
+│   │   └── online_retail_II.xlsx
+│   └── processed/                 # optional local exports (not required by pipeline)
+├── src/
+│   └── load_raw_online_retail.py  # core loader logic
+├── elt_step1_extract.py           # pipeline step: Excel → Postgres/raw
+├── sql/
+│   └── init.sql                   # schema/bootstrap SQL
+├── docker-compose.yml
 ├── dbt_retail/
+│   ├── dbt_project.yml
+│   ├── profiles.yml
 │   ├── models/
-│   │   ├── staging/              # stg_sales.sql
-│   │   ├── marts/core/           # dims + facts (star schema)
-│   │   └── reporting/            # KPI models / views
-│   ├── macros/
-│   ├── packages.yml
-│   └── profiles.yml
+│   │   ├── staging/
+│   │   │   ├── sources.yml
+│   │   │   └── stg_sales.sql
+│   │   ├── marts/core/
+│   │   └── reporting/
+│   └── target/                    # generated by dbt docs/compile
 ├── powerbi/
-│   ├── pbix/
-│   │   └── retail_analytics_exec_dashboard.pbix
+│   ├── retail_analytics_exec_dashboard.pbix
+│   ├── elt_retail_analytics.pbix
 │   └── screenshots/
 │       ├── pbi_model_star_schema.png
-│       ├── pbi_measures_list.png
-│       └── dashboard_final.png
-├── assets/
-│   └── images/
-│       └── dbt_graph.png
-├── sql/
-│   └── init.sql                  # Database initialization script
-├── docker-compose.yml
-├── elt_step1_extract.py          # Python ETL script
-├── .env.example
-└── README.md
+│       └── pbi_measures_list.png
+└── assets/
+    └── images/
+        └── dbt_graph.png
 ```
 
 ---
 
 ## ✅ Prerequisites
 
-- **Docker + Docker Compose** (for Postgres)
-- **Python 3.10+** (project uses a local virtualenv)
-- **`uv`** package manager (or adapt commands to pip)
-- **Power BI Desktop** (for dashboard visualization)
+- **Docker + Docker Compose** (Postgres)
+- **Python 3.10+**
+- **uv** (Python package manager)
+- **Power BI Desktop** (for the BI part)
 
 ---
 
@@ -200,13 +200,11 @@ ELT_retail_analytics/
 
 ### 1) Create your `.env`
 
-Copy the example and fill values:
-
 ```bash
 cp .env.example .env
 ```
 
-Example `.env`:
+Example:
 
 ```env
 POSTGRES_USER=retail_user
@@ -220,454 +218,201 @@ POSTGRES_DB=retail
 
 ```bash
 docker compose up -d
-```
-
-Verify container is running:
-
-```bash
 docker ps
-# Should show: retail_pg container
 ```
 
-### 3) Initialize database schemas
+### 3) Initialize schemas
 
 ```bash
 docker exec -it retail_pg psql -U retail_user -d retail -f /sql/init.sql
 ```
 
-This creates schemas: `raw`, `analytics_staging`, `analytics_marts`, `analytics_reporting`
-
 ---
 
-## 🚀 Run the Pipeline
+## 🚀 Run the pipeline
 
-### Step 1: Extract + Load (Python → Postgres raw)
+### Step 1 — Extract + Load (Python → Postgres/raw)
+
+From repository root:
 
 ```bash
-# Activate virtual environment (if using)
-source .venv/Scripts/activate   # Windows Git Bash
-# or
-source .venv/bin/activate       # Linux/Mac
-
-# Run extraction script
-python elt_step1_extract.py
+uv sync
+uv run python elt_step1_extract.py
 ```
 
-**What this does:**
+What it does:
 
 - Reads `data/raw/online_retail_II.xlsx`
-- Cleans data (removes nulls, negatives)
-- Loads into `raw.sales` table in Postgres
+- Cleans obvious invalid rows (null IDs, negative/zero quantities or prices)
+- Loads to **`raw.sales`** in Postgres
 
-**Expected output:**
-
-```
-📂 Reading: data/raw/online_retail_II.xlsx
-✅ Loaded: ~540,000 lines
-🧹 Cleaning data...
-✅ After cleaning: ~400,000 lines
-💾 Loading into Postgres (raw.sales)...
-✅ 400,000+ lines loaded!
-```
-
-### Step 2: Build dbt models (staging → marts → reporting)
+### Step 2 — Transform (dbt)
 
 ```bash
 cd dbt_retail
+set -o allexport; . ../.env; set +o allexport
 
-# Load environment variables
-set -a && source ../.env && set +a  # Linux/Mac/Git Bash
-# or
-set -o allexport; . ../.env; set +o allexport  # Alternative
-
-# Run all dbt models
 uv run dbt run --profiles-dir .
-
-# Or run specific models:
-uv run dbt run --profiles-dir . --select stg_sales dim_products dim_customers dim_date dim_invoice fact_sales fact_sales_star
 ```
 
-**What this does:**
+Build a specific subset (example):
 
-- Creates staging tables (`analytics_staging.stg_sales`)
-- Builds star schema dimensions and facts (`analytics_marts.*`)
-- Generates reporting tables (`analytics_reporting.*`)
+```bash
+uv run dbt run --profiles-dir . --select stg_sales fact_sales fact_sales_star dim_date dim_products dim_invoice dim_customers
+```
 
-### Step 3: Run dbt tests
+### Step 3 — Test (dbt)
 
 ```bash
 uv run dbt test --profiles-dir .
 ```
 
-**Tests verify:**
-
-- Primary key uniqueness
-- Not-null constraints
-- Referential integrity (foreign keys)
-- Data quality checks
-
-Expected output:
-
-```
-Completed successfully
-Done. PASS=X WARN=0 ERROR=0 SKIP=0
-```
-
 ---
 
-## 📊 Power BI — Semantic Model & Dashboard
+## 📊 Power BI — Semantic model & dashboard
 
-### 1) Load Tables from Postgres
+### 1) Connect to Postgres
 
 In Power BI Desktop:
 
-1. **Get Data** → **PostgreSQL database**
-2. **Server:** `localhost`
-3. **Database:** `retail`
-4. **Username:** `retail_user` (from .env)
-5. **Password:** `retail_pass` (from .env)
+- **Get Data → PostgreSQL database**
+- Server: `localhost`
+- Database: `retail`
+- Credentials: from `.env`
 
-Load these tables from `analytics_marts`:
+Load tables from these schemas:
 
-- `analytics_marts.fact_sales_star`
-- `analytics_marts.dim_date`
-- `analytics_marts.dim_customers`
-- `analytics_marts.dim_products`
-- `analytics_marts.dim_invoice`
+- `marts`: `fact_sales_star`, `dim_date`, `dim_customers`, `dim_products`, `dim_invoice`
+- (optional) `analytics_reporting`: `kpi_daily`, `kpi_product`, `kpi_customer`, `sales_star`
 
-📸 Power BI star schema (Model view):  
-![Power BI star schema](powerbi/screenshots/pbi_model_star_schema.png)
+### 2) Relationships (Model view)
 
----
-
-### 2) Create Relationships (Model View)
-
-Configure these relationships (Many-to-one, Single direction, Active):
+Create active relationships (Many-to-one, Single direction):
 
 - `fact_sales_star[customer_id]` → `dim_customers[customer_id]`
 - `fact_sales_star[sales_date]` → `dim_date[date_day]`
 - `fact_sales_star[stock_code]` → `dim_products[stock_code]`
 - `fact_sales_star[invoice_no]` → `dim_invoice[invoice_no]`
 
-**Important:** Ensure all relationships are:
-
-- **Cardinality:** Many to One (\*)
-- **Cross filter direction:** Single
-- **Make this relationship active:** ✅ Checked
-
 ---
 
-### 3) DAX Measures
+## 🧮 DAX Measures (copy/paste)
 
-Create a dedicated table called **Measures** (blank table) to store all measures.
-
-📸 Measures list:  
-![Measures list](powerbi/screenshots/pbi_measures_list.png)
-
-#### Core Measures (Copy-Paste Ready):
+In the provided PBIX, table names may appear with a schema prefix (example: `marts_fact_sales_star`).
+If your model uses different names, replace them in the measures below.
 
 ```DAX
--- Revenue (Faturamento Total)
+-- Revenue
 CA =
-SUM ( 'analytics_marts_fact_sales_star'[line_amount] )
+SUM ( 'marts_fact_sales_star'[line_amount] )
 
--- Orders / Invoices (Pedidos)
+-- Orders / Invoices
 Commandes (Invoices) =
-DISTINCTCOUNT ( 'analytics_marts_fact_sales_star'[invoice_no] )
+DISTINCTCOUNT ( 'marts_fact_sales_star'[invoice_no] )
 
--- Unique Customers (Clientes)
+-- Unique customers
 Clients =
-DISTINCTCOUNT ( 'analytics_marts_fact_sales_star'[customer_id] )
+DISTINCTCOUNT ( 'marts_fact_sales_star'[customer_id] )
 
--- Units Sold (Unidades)
+-- Units sold
 Unités =
-SUM ( 'analytics_marts_fact_sales_star'[quantity] )
+SUM ( 'marts_fact_sales_star'[quantity] )
 
--- Average Order Value (Ticket Médio)
+-- Average order value
 AOV (€ / commande) =
 DIVIDE ( [CA], [Commandes (Invoices)] )
 
--- Average Selling Price (Preço Médio Unitário)
+-- Average selling price
 ASP (€ / unité) =
 DIVIDE ( [CA], [Unités] )
 
--- Revenue per Customer
+-- Revenue per customer
 CA / client =
 DIVIDE ( [CA], [Clients] )
 
--- Distinct Products
+-- Distinct products
 Produits distincts =
-DISTINCTCOUNT ( 'analytics_marts_fact_sales_star'[stock_code] )
+DISTINCTCOUNT ( 'marts_fact_sales_star'[stock_code] )
 
--- Units per Order (Itens por Pedido)
+-- Units per order
 Unités / commande =
 DIVIDE ( [Unités], [Commandes (Invoices)] )
 
--- Previous Month Revenue
-CA Mois précédent =
-CALCULATE ( [CA], DATEADD ( 'analytics_marts_dim_date'[date_day], -1, MONTH ) )
+-- Cancellation rate (by invoices)
+Taux d'annulation =
+DIVIDE (
+    CALCULATE (
+        DISTINCTCOUNT ( 'marts_fact_sales_star'[invoice_no] ),
+        'marts_fact_sales_star'[is_cancelled] = TRUE ()
+    ),
+    [Commandes (Invoices)]
+)
 
--- Month-over-Month Change (%)
+-- Previous month revenue
+CA Mois précédent =
+CALCULATE ( [CA], DATEADD ( 'marts_dim_date'[date_day], -1, MONTH ) )
+
+-- Month-over-month change (%)
 CA MoM % =
 DIVIDE ( [CA] - [CA Mois précédent], [CA Mois précédent] )
-
--- Month-to-Date Revenue
-CA MTD =
-CALCULATE ( [CA], DATESMTD ( 'analytics_marts_dim_date'[date_day] ) )
-
--- Year-to-Date Revenue
-CA YTD =
-CALCULATE ( [CA], DATESYTD ( 'analytics_marts_dim_date'[date_day] ) )
 ```
 
-#### Formatting Recommendations:
+---
 
-**For Currency Measures (CA, AOV, ASP, CA/client):**
+## 🔁 Refresh notes
 
-1. Select the measure
-2. **Measure tools** → **Format** → **Currency (€)**
-3. **Decimal places:** 1-2 (depending on preference)
+After running dbt:
 
-**For Percentage Measures (CA MoM %):**
-
-1. Select the measure
-2. **Format** → **Percentage**
-3. **Decimal places:** 1
-
-**For Count Measures (Commandes, Clients, Unités):**
-
-1. **Format** → **Whole number**
-2. **Thousands separator:** ✅ Checked
+- In Power BI Desktop: **Home → Refresh**
+- If columns changed: **Transform data → Refresh Preview → Close & Apply**
 
 ---
 
-### 4) Dashboard Components
+## 🧪 Troubleshooting
 
-The executive dashboard includes:
+### dbt is not found
 
-#### Header Section
+Use the project runner consistently:
 
-- Gradient background (#0078D4 → #004578)
-- Title: "Retail Analytics Dashboard"
-- Subtitle: "Visão Executiva | 2009-2011"
-- Integrated filters: Date range (slicer), Country (slicer)
+```bash
+cd dbt_retail
+uv run dbt --version
+```
 
-#### KPI Cards (with sparklines)
+### Verify data in Postgres
 
-1. **Faturamento Total (CA Net)** — Total Revenue
-   - Icon: 💰
-   - Color: Blue (#0078D4)
-   - Sparkline: Monthly trend
-   - Indicator: MoM % change
-
-2. **Pedidos Totais (Commandes Net)** — Total Orders
-   - Icon: 📦
-   - Color: Green (#107C10)
-   - Sparkline: Monthly trend
-   - Indicator: MoM % change
-
-3. **Total Clientes (Clients)** — Unique Customers
-   - Icon: 👥
-   - Color: Purple (#8764B8)
-   - Sparkline: Monthly trend
-   - Indicator: MoM % change
-
-4. **Ticket Médio (AOV Net)** — Average Order Value
-   - Icon: 🎯
-   - Color: Orange (#D83B01)
-   - Sparkline: Monthly trend
-   - Indicator: MoM % change
-
-5. **Taxa Cancelamento** — Cancellation Rate
-   - Icon: ⚠️
-   - Color: Red (#A80000)
-   - Sparkline: Monthly trend
-   - Indicator: MoM % change
-
-#### Main Chart
-
-- **Type:** Line chart + Column chart (combo)
-- **X-axis:** Month/Year (from dim_date)
-- **Primary Y-axis:** CA Net (revenue)
-- **Secondary Y-axis:** CA MoM % (month-over-month change)
-- **Features:** Data labels, markers, gridlines
-
-#### Top 10 Products
-
-- **Type:** Horizontal bar chart
-- **Category:** Product description
-- **Value:** CA Net (revenue)
-- **Filter:** Top 10 by revenue
-- **Formatting:** Gradient color (light blue → dark blue)
-
-#### Geographic Analysis
-
-- **Type:** Donut chart or Map
-- **Legend:** Country
-- **Value:** CA Net (revenue)
-- **Focus:** UK vs Others distribution
-
-#### Detailed Table
-
-- **Type:** Matrix or Table
-- **Rows:** Country
-- **Values:** CA Net, % of Total
-
-#### Footer
-
-- Dataset information: "UCI Online Retail (2009-2011)"
-- Last update timestamp
-- Pipeline description: "ELT demonstration (Python + dbt + Postgres + Power BI)"
+```sql
+SELECT COUNT(*) FROM raw.sales;
+SELECT SUM(line_amount) FROM marts.fact_sales_star;
+```
 
 ---
 
-### 5) Dashboard Best Practices Applied
+## 📌 Tech stack
 
-✅ **Design:**
-
-- Consistent color palette (blues, greens, purples, oranges)
-- Rounded corners (8px) on all cards
-- Subtle shadows for depth
-- Gradient header for modern look
-- Professional typography (Segoe UI family)
-
-✅ **Layout:**
-
-- Grid alignment (10px spacing)
-- Clear visual hierarchy
-- Generous white space
-- Responsive to filters
-
-✅ **Interactivity:**
-
-- Cross-filtering between visuals
-- Date range slicer
-- Country slicer
-- Drill-down capabilities (optional)
-
-✅ **Data Integrity:**
-
-- All KPIs verified against SQL queries
-- Star schema ensures no duplicate counting
-- Proper date hierarchies
-- Consistent formatting
+- **Source:** Online Retail II (Excel)
+- **ELT:** Python + Postgres (Docker)
+- **Transformations:** dbt
+- **BI:** Power BI Desktop
+- **Version control:** Git + GitHub
 
 ---
 
-## 🔁 Refresh Logic (Important)
+## 🧭 Roadmap (optional)
 
-### When dbt rebuilds tables/views:
-
-**In Power BI Desktop:**
-
-1. **Home** → **Refresh** (standard refresh)
-2. If column structure changed: **Transform data** → **Refresh Preview** → **Close & Apply**
-
-### Troubleshooting Refresh Issues:
-
-**Problem:** Power BI shows errors after dbt run  
-**Solution:**
-
-1. Close Power BI file
-2. Delete cache: `C:\Users\<username>\AppData\Local\Microsoft\Power BI Desktop\AnalysisServicesWorkspaces`
-3. Reopen file
-4. Transform data → Refresh Preview → Close & Apply
-
-**Problem:** Values seem incorrect  
-**Solution:**
-
-1. Verify in Postgres directly:
-   ```sql
-   SELECT SUM(line_amount) FROM analytics_marts.fact_sales_star;
-   ```
-2. Compare with Power BI's [CA] measure
-3. Check for relationship issues in Model view
+- Add CI (GitHub Actions) for `dbt build` + `dbt test`
+- Add incremental models for larger datasets
+- Add automated refresh script for local runs
+- Extend time-intelligence measures (YoY, rolling windows)
 
 ---
 
-## 🧪 Notes / Gotchas
+## 📝 Attribution
 
-### Data Quality
+Dataset reference:
 
-- **For star schema relationships, dimension keys must be unique**
-- If Power BI complains about duplicates, verify in Postgres:
-  ```sql
-  SELECT customer_id, COUNT(*)
-  FROM analytics_marts.dim_customers
-  GROUP BY customer_id
-  HAVING COUNT(*) > 1;
-  ```
-  (Should return 0 rows)
+```text
+https://archive.ics.uci.edu/dataset/352/online+retail
+```
 
-### dbt Warnings
-
-- You may see warnings about deprecated generic test syntax
-- These are non-blocking and can be ignored (or update syntax to v2)
-
-### Dataset Period
-
-- Data is from **2009-2011** (historical dataset)
-- This is intentional - demonstrates pipeline with real UCI data
-- Add disclaimer in dashboard footer to set expectations
-
-### Performance
-
-- ~400K rows in fact table is manageable for Power BI
-- If dataset grows significantly, consider:
-  - Aggregation tables
-  - Incremental dbt models
-  - DirectQuery mode (instead of Import)
-
----
-
-## 📌 Tech Stack
-
-| Layer               | Technology                                     |
-| ------------------- | ---------------------------------------------- |
-| **Data Source**     | UCI Online Retail Dataset (Excel)              |
-| **Extraction**      | Python (pandas, sqlalchemy)                    |
-| **Database**        | PostgreSQL 16 (Docker)                         |
-| **Transformation**  | dbt 1.8+                                       |
-| **Visualization**   | Power BI Desktop                               |
-| **Orchestration**   | Manual (can be automated with Airflow/Prefect) |
-| **Version Control** | Git + GitHub                                   |
-
----
-
-## 🎯 Future Enhancements
-
-Potential improvements for this project:
-
-- [ ] Add CI/CD pipeline for dbt tests (GitHub Actions)
-- [ ] Implement incremental models for larger datasets
-- [ ] Add data quality monitoring (dbt expectations)
-- [ ] Create drill-through pages in Power BI
-- [ ] Add Python script for automated refresh
-- [ ] Implement row-level security in Power BI
-- [ ] Add time intelligence calculations (YoY, QoQ)
-- [ ] Create mobile-optimized dashboard layout
-- [ ] Add anomaly detection for KPIs
-- [ ] Implement data lineage documentation
-
----
-
-## 📝 License & Attribution
-
-- **Dataset:** [UCI Machine Learning Repository - Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail)
-- **License:** This project is for educational/demonstration purposes
-- **Author:** [Your Name]
-- **Year:** 2025
-
----
-
-## 🙏 Acknowledgments
-
-- UCI Machine Learning Repository for the Online Retail dataset
-- dbt Community for excellent documentation
-- Power BI community for visualization best practices
-
----
-
-**📧 Questions or feedback?** Open an issue on GitHub or contact [rbmidolli@gmail.com]
-
-**⭐ Like this project?** Give it a star on GitHub!
+Author: Rafael Midolli
